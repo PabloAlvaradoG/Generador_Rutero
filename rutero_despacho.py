@@ -373,7 +373,7 @@ HDRS = ["Seq.","Prior.","Bodega","Comprobante","Nombre Cliente",
 
 def escribir_hoja(wb_out, ws_name, titulo_cab, subtitulo_cab,
                   registros, bodega_str, empresas, fecha_str,
-                  centros_nom, modo_extra=""):
+                  centros_nom, modo_extra="", separar_ciudades=False):
     """Escribe una hoja de ruta genérica (sirve para destino y camión)"""
     wsR = wb_out.create_sheet(ws_name)
 
@@ -457,8 +457,25 @@ def escribir_hoja(wb_out, ws_name, titulo_cab, subtitulo_cab,
 
     # Datos
     ds = 9
-    for idx, row in enumerate(registros):
-        dr = ds + idx
+    dr = ds
+    seq = 1
+    ciudad_actual = None
+
+    for row in registros:
+        # Separador de ciudad (solo en modo camion)
+        if separar_ciudades and row["ciudad"] != ciudad_actual:
+            ciudad_actual = row["ciudad"]
+            # Fila separadora con nombre de ciudad
+            wsR.merge_cells(start_row=dr, start_column=1, end_row=dr, end_column=10)
+            c = wsR.cell(dr, 1)
+            c.value = f"  📍  {ciudad_actual}"
+            c.font  = Font(name="Arial", bold=True, size=9, color=C_BLN)
+            c.fill  = PatternFill("solid", fgColor=C_AZM)
+            c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+            c.border = thin()
+            wsR.row_dimensions[dr].height = 16
+            dr += 1
+
         for fc in range(1, 11):
             c = wsR.cell(dr, fc)
             c.fill = PatternFill("solid", fgColor=C_BLN)
@@ -468,7 +485,7 @@ def escribir_hoja(wb_out, ws_name, titulo_cab, subtitulo_cab,
                 horizontal="left" if fc == 5 else "center",
                 vertical="center")
 
-        wsR.cell(dr,1).value = idx+1
+        wsR.cell(dr,1).value = seq
         wsR.cell(dr,2).value = row["prioridad"]
         wsR.cell(dr,3).value = row["bodega"]
         wsR.cell(dr,4).value = row["comp"]
@@ -498,8 +515,11 @@ def escribir_hoja(wb_out, ws_name, titulo_cab, subtitulo_cab,
         else:
             wsR.cell(dr,2).font = Font(name="Arial",size=8,color="646464")
 
-    # Subtotal
-    sub_r = ds + n_rows
+        dr += 1
+        seq += 1
+
+    # Subtotal — dr apunta a la siguiente fila libre despues de datos
+    sub_r = dr
     wsR.merge_cells(start_row=sub_r,start_column=1,end_row=sub_r,end_column=7)
     c = wsR.cell(sub_r,1)
     c.value="SUBTOTAL"; c.font=Font(name="Arial",bold=True,size=9,color=C_BLN)
@@ -802,8 +822,11 @@ def generar_por_camion(datos, centros_nom, agente_camion):
 
     for camion in camiones:
         regs=datos["df_camion"][camion]
-        regs.sort(key=lambda r:(r["ciudad"],r["prioridad"],
-                                r["comp"].zfill(20) if r["comp"].isdigit() else r["comp"]))
+        regs.sort(key=lambda r:(
+            r["ciudad"],
+            r["prioridad"],
+            r["comp"].zfill(20) if r["comp"].isdigit() else r["comp"]
+        ))
         sn=sh_name(camion)
         ciudades_cam=", ".join(sorted(datos["df_cam_ciudades"][camion]))
         bodegas=datos["df_cam_bodega"][camion]
@@ -816,7 +839,8 @@ def generar_por_camion(datos, centros_nom, agente_camion):
 
         n,m=escribir_hoja(wb_out, sn, "CAMIÓN", camion,
                           regs, bodega_str, emp, fecha, centros_nom,
-                          modo_extra=f"Ciudades: {ciudades_cam}")
+                          modo_extra=f"Ciudades: {ciudades_cam}",
+                          separar_ciudades=True)
         total_f+=n; total_m+=m
         filas_res.append((camion, n, m, emp, sn))
 
