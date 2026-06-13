@@ -588,16 +588,17 @@ def escribir_resumen(ws_res, filas_res, total_f, total_m, modo):
         ws_res.row_dimensions[row_num].height=16
 
     tot_r=len(filas_res)+5
-    ws_res.merge_cells(start_row=tot_r,start_column=1,end_row=tot_r,end_column=2)
+    # Total general: estilizar SIN merge para evitar MergedCell read-only
+    vals_tot={1:"TOTAL GENERAL", 2:"", 3:total_f,
+              4:round(total_m,2), 5:""}
     for fc in range(1,6):
         c=ws_res.cell(tot_r,fc)
+        c.value=vals_tot[fc]
         c.fill=PatternFill("solid",fgColor=C_AZO)
         c.font=Font(name="Arial",bold=True,size=10,color=C_BLN)
-        c.border=thin(); c.alignment=Alignment(horizontal="center",vertical="center")
-    ws_res.cell(tot_r,1).value="TOTAL GENERAL"
-    ws_res.cell(tot_r,2).value=total_f
-    ws_res.cell(tot_r,3).value=round(total_m,2)
-    ws_res.cell(tot_r,3).number_format="#,##0.00"
+        c.border=thin()
+        c.alignment=Alignment(horizontal="center",vertical="center")
+    ws_res.cell(tot_r,4).number_format="#,##0.00"
     ws_res.row_dimensions[tot_r].height=20
 
 # ── Hojas de calidad ──────────────────────────────────────────
